@@ -1,4 +1,4 @@
-#!/home/kalo/venv/bin/python
+#!/usr/bin/env python
 
 import os
 import sys
@@ -15,29 +15,51 @@ import matplotlib.animation as animation
 from scipy.optimize import curve_fit
 from colorama import Fore, Style, init
 
-coin_list = ['BTCUSDT',
-			 'ATAUSDT',
-			 'COSUSDT',
-			 'ELFUSDT', 'ETHUSDT',
-			 'FETUSDT', 'FILUSDT', 'FIOUSDT',
-			 'GTCUSDT',
-			 'IDUSDT', 'INJUSDT',
-			 'JASMYUSDT',
-			 'LOKAUSDT', 'LOOMUSDT',
-			 'PEPEUSDT',
-			 'RADUSDT', 'REZUSDT',
-			 'SOLUSDT',
-]
+coin_list_full = ['BTCUSDT',
+				  'AKROUSDT', 'ATAUSDT',
+				  'COSUSDT', 'CITYUSDT',
+				  'DOGEUSDT',
+				  'ELFUSDT', 'ETHUSDT',
+				  'FETUSDT', 'FILUSDT', 'FIOUSDT',
+				  'GTCUSDT',
+				  'IDUSDT', 'INJUSDT',
+				  'JASMYUSDT',
+				  'LOKAUSDT', 'LOOMUSDT',
+				  'PEPEUSDT',
+				  'RADUSDT', # 'REZUSDT',
+				  'SOLUSDT',
+				  'UNFIUSDT',
+				  'VICUSDT',
+				  ]
 coin_list_test = ['BTCUSDT', 'ETHUSDT', 'FIOUSDT', 'JASMYUSDT']
-# coin_list = coin_list_test
+
+run_mode = 'test'
+# run_mode = 'default'
+
+coin_list = coin_list_test if run_mode == 'test' else coin_list_full
 
 binance_client = Client()
 data_delta = '1h'
 data_history = '1M'
 data_t0 = 1714510800 # halving 2024
-events_min = 1e2
+events_min = 1e3
 events_max = 1e5
-polynom_degree = 8
+events_default = 4e3
+polynom_degree = 6
+
+
+class baby:
+
+	def __init__(self, x, y): self.set(x, y)
+
+	def set(self, x, y):
+
+		self.x = x
+		self.y = y
+		
+	def notegal(self): return self.x != self.y
+	def rate(self): return self.x / self.y
+
 
 def interval_to_seconds(interval):
     """Convert a Binance interval string to milliseconds
@@ -66,7 +88,7 @@ def interval_to_seconds(interval):
             seconds = int(interval[:-1]) * seconds_per_unit[unit]
         except ValueError:
             pass
-    return seconds
+    return float(seconds)
 
 
 def cli(clarg, age_by_default, delta_by_default):
@@ -74,25 +96,38 @@ def cli(clarg, age_by_default, delta_by_default):
 	valid_intervals = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
 	print('cli: valid interval - m/inute, h/our, d/ay, w/eek, M/onth, Y/ear')
 
-	global data_delta, data_t0, data_history
+	global data_delta, data_t0, data_history, events_max, events_default
 	data_delta = delta_by_default
 	data_history = age_by_default
 
 	clsize = len(clarg)
-	if clsize > 1: data_history = clarg[1]
+	if clsize > 1:
+		data_history = clarg[1]
+		historinsec = interval_to_seconds(data_history)
+
+	if clsize == 2:
+		number_of_events = events_max
+		inter = 0
+		while number_of_events > events_default:
+			delta = valid_intervals[inter]
+			number_of_events = historinsec / interval_to_seconds(delta)
+			data_delta = delta
+			inter += 1
+
 	if clsize > 2: data_delta = clarg[2]
+	if 'test' in clarg:
+		data_history = '1d'
+		data_delta = '1m'
 
-	data_t0 = time.time() - interval_to_seconds(data_history)
-
+	historinsec = interval_to_seconds(data_history)
+	data_t0 = time.time() - historinsec;
 	if not data_delta in valid_intervals:
-#		print('cli:', data_t0, unix_to_date(data_t0), data_delta)
-#	else:
-		print('cli:', data_delta, 'is not a valid interval, valid intervals:', valid_intervals)
+		print('cli:', valid_intervals)
 		exit(1)
 
 		
 
-	number_of_events = int(interval_to_seconds(data_history) / interval_to_seconds(data_delta))
+	number_of_events = historinsec / interval_to_seconds(data_delta)
 	if number_of_events < events_min: die('not enough events {}'.format(number_of_events))
 	if number_of_events > events_max: die('too much events {}'.format(number_of_events))
 	#from_the_very_beginning = binance_client._get_earliest_valid_timestamp(coin, data_delta)
@@ -173,120 +208,139 @@ def update_price(info):
 	history.append(latest)
 	print(history[-1])
 
-def correlation(asset1, asset2 , plot):
+def plotext(plot, var, val, x, y, va = 'bottom', ha = 'right', scale = 100):
 
-	tickcolor = 'black'
-	print(asset1, asset2, data_t0, unix_to_date(data_t0))
+	val = val * scale
+	color = 'green' if val > 0 else 'red'
+	plot.text(x, y,
+			  '{} {:+5.4}%'.format(var, val),
+			  transform = plot.transAxes,
+			  ha = ha,
+			  va = va,
+			  color = color)
+
+def correlation(asset1, asset2 , plot, tickcolor = 'black'):
 
 	coindatax = binance_client.get_historical_klines(asset1, data_delta, str(data_t0), limit = 1000)
 	coindatay = binance_client.get_historical_klines(asset2, data_delta, str(data_t0), limit = 1000)
 
-	dfx = data_frame(coindatax)
-	dfy = data_frame(coindatay)
-	t0 = dfx.index[0]
-	t1 = dfx.index[-1]
-	#dfx['weight'] = dfx.index - t0
-	#dfy['weight'] = dfy.index - t0
+	df = baby(data_frame(coindatax), data_frame(coindatay))
+	prix = baby(df.x['open'], df.y['open'])
+	t0 = df.x.index[0]
+	t1 = df.x.index[-1]
+	#df.x['weight'] = df.x.index - t0
+	#df.y['weight'] = df.y.index - t0
 
 	# print(df.info())
 
-	dfrows, dfcolumns = dfx.shape
+	dfrows, dfcolumns = df.x.shape
 
 	nbins = calculate_number_of_bins(dfrows, 10, 33, 222)
 
-	x0   = dfx['open'].iloc[0]
-	x    = dfx['open'].iloc[-1]
-	xmin = dfx['open'].min()
-	xmax = dfx['open'].max()
+	step = baby(int(len(prix.x) / 4), int(len(prix.y) / 4))
+
+	x = []
+	x.append(prix.x.iloc[0 * step.x])
+	x.append(prix.x.iloc[1 * step.x])
+	x.append(prix.x.iloc[2 * step.x])
+	x.append(prix.x.iloc[3 * step.x])
+	x.append(prix.x.iloc[-1])
+	xmin = prix.x.min()
+	xmax = prix.x.max()
 	
-	y0   = dfy['open'].iloc[0]
-	y    = dfy['open'].iloc[-1]
-	ymin = dfy['open'].min()
-	ymax = dfy['open'].max()
+	y = []
+	y.append(prix.y.iloc[0 * step.y])
+	y.append(prix.y.iloc[1 * step.y])
+	y.append(prix.y.iloc[2 * step.y])
+	y.append(prix.y.iloc[3 * step.y])
+	y.append(prix.y.iloc[-1])
+	ymin = prix.y.min()
+	ymax = prix.y.max()
 
-	dx = x - x0
-	dy = y - y0
+	dx = []
+	dx.append(x[1] - x[0])
+	dx.append(x[2] - x[1])
+	dx.append(x[3] - x[2])
+	dx.append(x[4] - x[3])
+	dx.append(x[-1] - x[0])
 
-	x_bins = np.linspace(xmin, xmax, nbins)
-	y_bins = np.linspace(ymin, ymax, nbins)
+	dy = []
+	dy.append(y[1] - y[0])
+	dy.append(y[2] - y[1])
+	dy.append(y[3] - y[2])
+	dy.append(y[4] - y[3])
+	dy.append(y[-1] - y[0])
 
-	lendfx = len(dfx['open'])
-	lendfy = len(dfy['open'])
-	while lendfx < lendfy:
 
-		print('{} != {} dropping index 0'.format(lendfx, lendfy))
-		dfy = dfy.drop(dfy.index[0])
-		lendfx = len(dfx['open'])
-		lendfy = len(dfy['open'])
+	bins = baby(np.linspace(xmin, xmax, nbins), np.linspace(ymin, ymax, nbins))
+
+	lendf = baby(len(df.x), len(df.y))
+	while lendf.notegal():
+
+		print('\n{} {} != {} dropping 0'.format(asset1, lendf.x, lendf.y))
+		if lendf.x < lendf.y: df.y = df.y.drop(df.y.index[0])
+		else: df.x = df.x.drop(df.x.index[0])
+
+		lendf.set(len(df.x), len(df.y))
+		print('new data {} {}'.format(lendf.x, lendf.y))
+
+
+
 	
-	corr, xedges, yedges = np.histogram2d(dfx['open'], dfy['open'], bins = [x_bins, y_bins])
-	hist_flat = corr.flatten()
-	x_bin_centers = (xedges[:-1] + xedges[1:]) / 2
-	y_bin_centers = (yedges[:-1] + yedges[1:]) / 2
-	x_bin_centers_flat = np.tile(x_bin_centers, len(y_bin_centers))
-	y_bin_centers_flat = np.repeat(y_bin_centers, len(x_bin_centers))
+	prix.set(df.x['open'], df.y['open'])
+	hist2d, xedges, yedges = np.histogram2d(prix.x, prix.y, bins = [bins.x, bins.y])
+	hist_flat = hist2d.flatten()
+	bin_centers = baby((xedges[:-1] + xedges[1:]) / 2, (yedges[:-1] + yedges[1:]) / 2)
+	bin_centers_flat = baby(np.tile(bin_centers.x, len(bin_centers.y)), np.repeat(bin_centers.y, len(bin_centers.x)))
 
-	scatter = plot.scatter(x_bin_centers_flat, y_bin_centers_flat, s = hist_flat, c = hist_flat, cmap = 'viridis', alpha = 0.4, edgecolor = 'yellow', label = 'correlation')
+	scatter = plot.scatter(bin_centers_flat.x, bin_centers_flat.y, s = hist_flat, c = hist_flat, cmap = 'Blues', marker = 'p', alpha = 0.4, edgecolor = 'yellow', label = 'correlation')
 
-	plot.quiver(x0, y0, dx, dy, angles = 'xy', scale_units = 'xy', scale = 1, linewidth = 3, color = 'b', alpha = 0.2, label = 'change')
 	
-	plot.plot([xmin, xmax], [ymin, ymax], 'w:', label = '_dyagunal')
+	#plot.plot([xmin, xmax], [ymin, ymax], 'w:', label = '_dyagunal')
 	#plot.plot(df1['open'].iloc[-1], df2['open'].iloc[-1], 'ro', label = 'last')
 
 
 	#plot.hist2d(df1['open'], df2['open'], bins = nbins, alpha = 0.4, label = "uniform", color = 'magenta', edgecolor = 'white', density = True, cmap = 'plasma')
-	# im = plot.imshow(corr.T, origin = 'lower', aspect = 'auto', extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]])
+	# im = plot.imshow(hist2d.T, origin = 'lower', aspect = 'auto', extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]])
 
-	xchange = dx / x
-	ychange = dy / y
-	rate = xchange / ychange
+	change = baby(dx[-1] / x[-1], dy[-1] / y[-1])
+	rate = change.rate()
 	status = 0
 
-	if ychange < 0: # bc down
-		status = 'fall' if xchange < 0 else 'antirise'
-	else: #bc up
-		status = 'antifall' if xchange < 0 else 'rise'
+	if change.y < 0: status = 'fall' if change.x < 0 else 'antirise'
+	else: status = 'antifall' if change.x < 0 else 'rise'
+	vectorcolor = 'red'	if change.x < 0 else 'green'
 
-	if rate > 1 or rate < -1: status = '{} {}'.format('super-', status)
+	#plot.quiver(x[0], y[0], dx[-1], dy[-1], angles = 'xy', scale_units = 'xy', scale = 1, linewidth = 5, linestyle = '-', color = vectorcolor, alpha = 0.2, label = 'change')
+	q = 0
+	while q < 4:
+		plot.quiver(x[q], y[q], dx[q], dy[q], angles = 'xy', scale_units = 'xy', scale = 1, linewidth = 5, linestyle = '-', color = vectorcolor, alpha = 0.2, label = 'change')
+		q += 1
 
-	correlation_matrix = np.corrcoef(dfx['open'], dfy['open'])
+	q = 0
+	while q < abs(rate):
+		
+		q += 1
+		status = 'super-' + status if abs(rate) > q else status 
+
+	correlation_matrix = np.corrcoef(prix.x, prix.y)
 	correlation_matrix_0_1 = correlation_matrix[0, 1]
 
-
-	#print('status:', status)
-	#rate = (dx / dy) * (y / x) - 1
-
-	def colored_float(variable, value):
-
-		color = 'green' if value > 0 else 'red'
-		formatted_float = '{}: <span style="color:{}">{:+5.2f}</span>'.format(variable, color, value)
-		# formatted_float = '{}: {}{:+5.2f}{}'.format(variable, color, value, Style.RESET_ALL)
-
-		return formatted_float
-
-	
-	title = '{:s}: {:s}\nstatus: {:s}'.format(asset1,
-											  str(x).rstrip('0').rstrip('.'),
-											  status)
-	plot.set_title(title, color = tickcolor, loc = 'left', x = 0.03, y = 0.66)
-	#plot.axes.get_yaxis().set_visible(False)
+	jvhdskvs = str(x[-1]).rstrip('0').rstrip('.')
+	title = '{:s} = {:s}\n{:s}'.format(asset1, jvhdskvs, status)
+	plot.set_title(title, color = tickcolor, x = 0.06, y = 0.9, ha = 'left', va = 'top')
 	plot.set_yticklabels([])
 
-	def plotext(plot, var, val, x, y, ha = 'right', va = 'bottom'):
-		color = 'green' if val > 0 else 'red'
-		plot.text(x, y, '{}: {:+5.4}'.format(var, val), transform = plot.transAxes, ha = ha, va = va, color = color)
-
+	plotext(plot, '', change.x, 0.96, 0.96, 'top')
+	plotext(plot, 'corr', correlation_matrix_0_1, 0.96, 0.15)
 	plotext(plot, 'rate', rate, 0.96, 0.05)
-	plotext(plot, 'correlation', correlation_matrix_0_1, 0.96, 0.15)
-	plotext(plot, 'change', xchange, 0.96, 0.25)
 
 	return t0, t1
 
 
-def histogram(coin, plot):
+def histogram(coin, plot, tickcolor = 'black'):
 
-	tickcolor = 'black'
-	print(coin, data_t0, unix_to_date(data_t0))
+	# print(coin, data_t0, unix_to_date(data_t0))
 
 	coindata = binance_client.get_historical_klines(coin, data_delta, str(data_t0), limit = 1000)
 
@@ -294,6 +348,8 @@ def histogram(coin, plot):
 	t0 = df.index[0]
 	t1 = df.index[-1]
 	df['weight'] = df.index - t0
+	price = df['open']
+	weight = df['weight']
 
 	# print(df.info())
 
@@ -301,28 +357,27 @@ def histogram(coin, plot):
 
 	nbins = calculate_number_of_bins(dfrows, 10, 33, 222)
 
-	print('frame size: ', dfrows, 'histogram size: ', nbins)
+	# print('frame size: ', dfrows, 'histogram size: ', nbins)
 
-	whist, wbin = np.histogram(df['open'], bins = nbins, density = True, weights = df['weight'])
-	uhist, ubin = np.histogram(df['open'], bins = nbins, density = True)
-	plot.hist(df['open'], bins = nbins, alpha = 0.4, label = "uniform", color = 'magenta', edgecolor = 'white', density = True)
-	plot.hist(df['open'], bins = nbins, alpha = 0.4, label = "weighted", color = 'cyan', edgecolor = 'black', density = True, weights = df['weight'])
+	whist, wbin = np.histogram(price, bins = nbins, density = True, weights = weight)
+	uhist, ubin = np.histogram(price, bins = nbins, density = True)
+	plot.hist(price, bins = nbins, alpha = 0.4, label = "uniform", color = 'magenta', edgecolor = 'white', density = True)
+	plot.hist(price, bins = nbins, alpha = 0.4, label = "weighted", color = 'cyan', edgecolor = 'black', density = True, weights = weight)
 #	plot.ticklabel_format(axis = 'y', style='sci', scilimits = (0, 0))
 
-	first = df['open'].iloc[0]
-	last = df['open'].iloc[-1]
+	fromto = baby(price.iloc[0], price.iloc[-1])
 
-	plot.axvline(x = first, color = tickcolor, linestyle = ':', linewidth = 3, label = unix_to_date(t0))
-	plot.axvline(x = last, color = tickcolor, linestyle = '-', linewidth = 3, label = unix_to_date(t1))
+	plot.axvline(x = fromto.x, color = tickcolor, linestyle = ':', linewidth = 3, label = unix_to_date(t0))
+	plot.axvline(x = fromto.y, color = tickcolor, linestyle = '-', linewidth = 3, label = unix_to_date(t1))
 
 	ucoeff = poly_fit(plot, ubin, uhist, 'uni poly', 'm-')
 	wcoeff = poly_fit(plot, wbin, whist, 'wei poly', 'c-')
-	# umean, ustdev = gauss_fit(plot, df['open'], ubin, uhist, 'uni gauss', 'y-')
-	# wmean, wstdev = gauss_fit(plot, df['open'], wbin, whist, 'wei gauss', 'k-')
-	print ('histogram:', ucoeff, wcoeff)
+	# umean, ustdev = gauss_fit(plot, price, ubin, uhist, 'uni gauss', 'y-')
+	# wmean, wstdev = gauss_fit(plot, price, wbin, whist, 'wei gauss', 'k-')
+	# print ('histogram:', ucoeff, wcoeff)
 
 
-	title = "{:s} {:7.3f}".format(coin, last)
+	title = "{:s} {:7.3f}".format(coin, fromto.y)
 	plot.set_title(title, color = tickcolor, loc = 'center', y = 0.66)
 		
 	return t0, t1 
@@ -369,28 +424,45 @@ def check_vector_direction(dx, dy):
     return horizontal_direction, vertical_direction
 
 
-def update_figure(plot, ynet):
+
+def progress_bar(progress, total):
+
+	partition = progress / total
+	percent = partition * 100
+	bar = '#' * int(percent / 2) + '-' * (50 - int(percent / 2))
+	print(f'\r[{bar}] {percent:.2f}%', end = '')
+
+
+def update_figure(ax, ynet, mode = 'corr'):
 	global coinlist
-	xindex = yindex = 0
+	index = baby(0, 0)
 		
 	for coin in coin_list:
-		#t0, t1 = histogram(coin, plot[xindex, yindex])
-		#print('net: {0}, {1}'.format(xindex, yindex))
-		t0, t1 = correlation(coin, 'BTCUSDT', plot[xindex, yindex])
-		# if coin == 'BTCUSDT': plot[xindex, yindex].legend()
-		if yindex == ynet - 1:
-			xindex += 1
-			yindex = 0
+
+		progress_bar(ynet * index.x + index.y, len(coin_list))
+		# print('net: {0}, {1}'.format(index.x, index.y))
+		if mode == 'corr':
+			correlation(coin, 'BTCUSDT', ax[index.x, index.y], 'orange')
 		else:
-			yindex += 1
+			histogram(coin, ax[index.x, index.y], 'orange')
+			if coin == 'BTCUSDT': ax[index.x, index.y].legend()
+			
+		if index.y == ynet - 1:
 
+			index.x += 1
+			index.y = 0
+		else:
 
-	plt.subplots_adjust(wspace = 0, hspace = 0.44, left = 0, right = 1)
+			index.y += 1
+
+	progress_bar(ynet * index.x + index.y, len(coin_list))
+	print()
+
 	
 
 def main():
 
-	global binance_client
+	global binance_client, coin_list, run_mode
 	binance_client = Client(os.environ.get('BINANCE_KEY'), os.environ.get('BINANCE_SECRET'))
 	binance_client.API_URL = 'https://testnet.binance.vision/api'
 	binance_client.API_URL = 'https://api.binance.vision'
@@ -402,43 +474,46 @@ def main():
 	events = int(interval_to_seconds(data_history) / interval_to_seconds(data_delta))
 	print('main:', data_t0, unix_to_date(data_t0), data_history, data_delta, events)
 
-	global coin_list
 	coin_list_size = len(coin_list)
 	# coin_list_size += 1
 	
-	fig_width = 5
-	fig_height = 8
-	aspect_ratio = fig_width / fig_height
+	fig_size = baby(5, 8)
+	aspect_ratio = fig_size.x / fig_size.y
 
-	netx = nety = 0
-	while netx * nety < coin_list_size:
-		if (netx < nety): netx += 1
-		else: nety += 1
+	net = baby(0, 0)
+	while net.x * net.y < coin_list_size:
+		if (net.x < net.y): net.x += 1
+		else: net.y += 1
 
-	print('net: {0} * {1} > {2}'.format(netx, nety, coin_list_size))
+	print('mode: {0}, net: {1} * {2} > {3}'.format(run_mode, net.x, net.y, coin_list_size))
 	
 
-	plt.ion()
-	fig, axs = plt.subplots(netx, nety, figsize = (fig_width, fig_height))
+	#plt.ion()
+	fig, axs = plt.subplots(net.x, net.y, figsize = (fig_size.x, fig_size.y))
+	plt.subplots_adjust(wspace = 0, hspace = 0.44, left = 0, right = 1)
+	figg, axss = plt.subplots(net.x, net.y, figsize = (fig_size.x, fig_size.y))
+	plt.subplots_adjust(wspace = 0, hspace = 0.44, left = 0, right = 1)
 	fig.suptitle('history = {0}, time = {1}, {2} events'.format(data_history, data_delta, events))
+	figg.suptitle('history = {0}, time = {1}, {2} events'.format(data_history, data_delta, events))
 	fig.text(0.8, 0.03, 'kaloyansen.github.io', ha = 'center', va = 'center')
+	figg.text(0.8, 0.03, 'kaloyansen.github.io', ha = 'center', va = 'center')
 
 	
-	t0 = t1 = 0
-	init() # colorama
+	#init() # colorama
 
 	print('coin list:', coin_list)
 
 	continuer = True
 	while continuer:
-		update_figure(axs, nety)
-		plt.draw()
+		update_figure(axs, net.y, 'corr')
+		update_figure(axss, net.y, 'hist')
+		#plt.draw()
 		#plt.show()
-		plt.pause(0.1)
+		#plt.pause(0.1)
 		# time.sleep(10)
 		continuer = False
 
-	plt.ioff()
+	#plt.ioff()
 	plt.show()
 
 
