@@ -6,7 +6,6 @@ cffi==1.16.0
 charset-normalizer==3.3.2
 colorama==0.4.6
 contourpy==1.2.1
-cryptography==42.0.7
 cycler==0.12.1
 dateparser==1.2.0
 fonttools==4.51.0

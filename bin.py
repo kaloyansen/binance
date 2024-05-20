@@ -283,11 +283,9 @@ def correlation(asset1, asset2 , plot, tickcolor = 'black'):
 
 		lendf.set(len(df.x), len(df.y))
 		print('new data {} {}'.format(lendf.x, lendf.y))
-
-
-
 	
 	prix.set(df.x['open'], df.y['open'])
+
 	hist2d, xedges, yedges = np.histogram2d(prix.x, prix.y, bins = [bins.x, bins.y])
 	hist_flat = hist2d.flatten()
 	bin_centers = baby((xedges[:-1] + xedges[1:]) / 2, (yedges[:-1] + yedges[1:]) / 2)
