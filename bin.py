@@ -15,32 +15,29 @@ import matplotlib.animation as animation
 from scipy.optimize import curve_fit
 from colorama import Fore, Style, init
 
-coin_list_full = ['BTCUSDT',
-				  'AKROUSDT', 'ATAUSDT',
-				  'COSUSDT', 'CITYUSDT',
-				  'DOGEUSDT',
-				  'ELFUSDT', 'ETHUSDT',
-				  'FETUSDT', 'FILUSDT', 'FIOUSDT',
-				  'GTCUSDT',
-				  'IDUSDT', 'INJUSDT',
-				  'JASMYUSDT',
-				  'LOKAUSDT', 'LOOMUSDT',
-				  'PEPEUSDT',
-				  'RADUSDT', # 'REZUSDT',
-				  'SOLUSDT',
-				  'UNFIUSDT',
-				  'VICUSDT',
-				  ]
+
+coin_list_def = ['BTCUSDT',
+				 'AKROUSDT', 'ATAUSDT',
+				 'COSUSDT', 'CITYUSDT',
+				 'DOGEUSDT',
+				 'ELFUSDT', 'ETHUSDT',
+				 'FETUSDT', 'FILUSDT', 'FIOUSDT',
+				 'GTCUSDT',
+				 'IDUSDT', 'INJUSDT',
+				 'JASMYUSDT',
+				 'LOKAUSDT', 'LOOMUSDT',
+				 'PEPEUSDT',
+				 'RADUSDT', # 'REZUSDT',
+				 'SOLUSDT',
+				 'UNFIUSDT',
+				 'VICUSDT',
+				 ]
 coin_list_test = ['BTCUSDT', 'ETHUSDT', 'FIOUSDT', 'JASMYUSDT']
 
-run_mode = 'test'
-# run_mode = 'default'
-
-coin_list = coin_list_test if run_mode == 'test' else coin_list_full
-
+run_mode = 'default'
 binance_client = Client()
-data_delta = '1h'
-data_history = '1M'
+data_delta = '1m'
+data_history = '17h'
 data_t0 = 1714510800 # halving 2024
 events_min = 1e3
 events_max = 1e5
@@ -48,17 +45,47 @@ events_default = 4e3
 polynom_degree = 6
 
 
-class baby:
+class Gaga:
 
-	def __init__(self, x, y): self.set(x, y)
-
-	def set(self, x, y):
+	def __init__(self, x, y, z = False): self.set(x, y, z)
+	def notegal(self): return self.x != self.y
+	def rate(self): return self.x / self.y
+	def set(self, x, y, z = False):
 
 		self.x = x
 		self.y = y
+		if z != False: self.z = z 
 		
-	def notegal(self): return self.x != self.y
-	def rate(self): return self.x / self.y
+class Progress:
+
+	def __init__(self,
+				 progress_bar_size = 55,
+				 marker_past       = '=',
+				 marker_future     = ':',
+				 marker_now        = '>'):
+
+		self.set(progress_bar_size, marker_past, marker_future, marker_now)
+				 
+	def set(self, progress_bar_size, marker_past, marker_future, marker_now):
+
+		self.progress_bar_size = progress_bar_size
+		self.marker_past = marker_past
+		self.marker_future = marker_future
+		self.marker_now = marker_now
+
+	def go(self, progress, total, label = ''):
+
+		scale = self.progress_bar_size / 100	
+		partition = progress / total
+		percent = partition * 100
+		factor = int(percent * scale)
+		bar_size = Gaga(factor, self.progress_bar_size - factor)
+		bar =\
+		self.marker_past * (bar_size.x - 1) +\
+		self.marker_now +\
+		self.marker_future * bar_size.y
+
+		print(f'\r[{bar}] {percent:.0f}% {label:10s}', end = '')
 
 
 def interval_to_seconds(interval):
@@ -91,33 +118,56 @@ def interval_to_seconds(interval):
     return float(seconds)
 
 
-def cli(clarg, age_by_default, delta_by_default):
+def cli(clarg, history = 0, delta = 0):
 
 	valid_intervals = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
-	print('cli: valid interval - m/inute, h/our, d/ay, w/eek, M/onth, Y/ear')
+	# cli: valid interval - m/inute, h/our, d/ay, w/eek, M/onth, Y/ear'
 
-	global data_delta, data_t0, data_history, events_max, events_default
-	data_delta = delta_by_default
-	data_history = age_by_default
+	global data_delta, data_t0, data_history
+	global events_max, events_default, run_mode
+	global coin_list, coin_list_def, coin_list_test
+	
+	data_delta = data_delta if delta == 0 else delta
+	data_history = data_history if history == 0 else history
+	coin_list = coin_list_def
 
 	clsize = len(clarg)
-	if clsize > 1:
+	if 'info' in clarg:
+
+		run_mode = 'info'
+	elif 'live' in clarg:
+
+		run_mode = 'live'
+	elif 'test' in clarg:
+
+		run_mode = 'test'
+		data_history = '1d'
+		data_delta = '1m'
+		coin_list = coin_list_test
+
+	elif clsize > 2:
+
+		data_history = clarg[1]
+		data_delta = clarg[2]
+
+	elif clsize > 1:
+
 		data_history = clarg[1]
 		historinsec = interval_to_seconds(data_history)
-
-	if clsize == 2:
 		number_of_events = events_max
 		inter = 0
 		while number_of_events > events_default:
+
 			delta = valid_intervals[inter]
 			number_of_events = historinsec / interval_to_seconds(delta)
 			data_delta = delta
 			inter += 1
+	else:
 
-	if clsize > 2: data_delta = clarg[2]
-	if 'test' in clarg:
-		data_history = '1d'
-		data_delta = '1m'
+		run_mode = 'default'
+
+		
+
 
 	historinsec = interval_to_seconds(data_history)
 	data_t0 = time.time() - historinsec;
@@ -224,8 +274,8 @@ def correlation(asset1, asset2 , plot, tickcolor = 'black'):
 	coindatax = binance_client.get_historical_klines(asset1, data_delta, str(data_t0), limit = 1000)
 	coindatay = binance_client.get_historical_klines(asset2, data_delta, str(data_t0), limit = 1000)
 
-	df = baby(data_frame(coindatax), data_frame(coindatay))
-	prix = baby(df.x['open'], df.y['open'])
+	df = Gaga(data_frame(coindatax), data_frame(coindatay))
+	prix = Gaga(df.x['open'], df.y['open'])
 	t0 = df.x.index[0]
 	t1 = df.x.index[-1]
 	#df.x['weight'] = df.x.index - t0
@@ -237,7 +287,7 @@ def correlation(asset1, asset2 , plot, tickcolor = 'black'):
 
 	nbins = calculate_number_of_bins(dfrows, 10, 33, 222)
 
-	step = baby(int(len(prix.x) / 4), int(len(prix.y) / 4))
+	step = Gaga(int(len(prix.x) / 4), int(len(prix.y) / 4))
 
 	x = []
 	x.append(prix.x.iloc[0 * step.x])
@@ -272,9 +322,9 @@ def correlation(asset1, asset2 , plot, tickcolor = 'black'):
 	dy.append(y[-1] - y[0])
 
 
-	bins = baby(np.linspace(xmin, xmax, nbins), np.linspace(ymin, ymax, nbins))
+	bins = Gaga(np.linspace(xmin, xmax, nbins), np.linspace(ymin, ymax, nbins))
 
-	lendf = baby(len(df.x), len(df.y))
+	lendf = Gaga(len(df.x), len(df.y))
 	while lendf.notegal():
 
 		print('\n{} {} != {} dropping 0'.format(asset1, lendf.x, lendf.y))
@@ -288,8 +338,8 @@ def correlation(asset1, asset2 , plot, tickcolor = 'black'):
 
 	hist2d, xedges, yedges = np.histogram2d(prix.x, prix.y, bins = [bins.x, bins.y])
 	hist_flat = hist2d.flatten()
-	bin_centers = baby((xedges[:-1] + xedges[1:]) / 2, (yedges[:-1] + yedges[1:]) / 2)
-	bin_centers_flat = baby(np.tile(bin_centers.x, len(bin_centers.y)), np.repeat(bin_centers.y, len(bin_centers.x)))
+	bin_centers = Gaga((xedges[:-1] + xedges[1:]) / 2, (yedges[:-1] + yedges[1:]) / 2)
+	bin_centers_flat = Gaga(np.tile(bin_centers.x, len(bin_centers.y)), np.repeat(bin_centers.y, len(bin_centers.x)))
 
 	scatter = plot.scatter(bin_centers_flat.x, bin_centers_flat.y, s = hist_flat, c = hist_flat, cmap = 'Blues', marker = 'p', alpha = 0.4, edgecolor = 'yellow', label = 'correlation')
 
@@ -301,7 +351,7 @@ def correlation(asset1, asset2 , plot, tickcolor = 'black'):
 	#plot.hist2d(df1['open'], df2['open'], bins = nbins, alpha = 0.4, label = "uniform", color = 'magenta', edgecolor = 'white', density = True, cmap = 'plasma')
 	# im = plot.imshow(hist2d.T, origin = 'lower', aspect = 'auto', extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]])
 
-	change = baby(dx[-1] / x[-1], dy[-1] / y[-1])
+	change = Gaga(dx[-1] / x[-1], dy[-1] / y[-1])
 	rate = change.rate()
 	status = 0
 
@@ -363,7 +413,7 @@ def histogram(coin, plot, tickcolor = 'black'):
 	plot.hist(price, bins = nbins, alpha = 0.4, label = "weighted", color = 'cyan', edgecolor = 'black', density = True, weights = weight)
 #	plot.ticklabel_format(axis = 'y', style='sci', scilimits = (0, 0))
 
-	fromto = baby(price.iloc[0], price.iloc[-1])
+	fromto = Gaga(price.iloc[0], price.iloc[-1])
 
 	plot.axvline(x = fromto.x, color = tickcolor, linestyle = ':', linewidth = 3, label = unix_to_date(t0))
 	plot.axvline(x = fromto.y, color = tickcolor, linestyle = '-', linewidth = 3, label = unix_to_date(t1))
@@ -422,22 +472,15 @@ def check_vector_direction(dx, dy):
     return horizontal_direction, vertical_direction
 
 
-
-def progress_bar(progress, total):
-
-	partition = progress / total
-	percent = partition * 100
-	bar = '#' * int(percent / 2) + '-' * (50 - int(percent / 2))
-	print(f'\r[{bar}] {percent:.2f}%', end = '')
-
-
 def update_figure(ax, ynet, mode = 'corr'):
 	global coinlist
-	index = baby(0, 0)
+	index = Gaga(0, 0)
 		
+	coin = 0
+	pro = Progress()
 	for coin in coin_list:
 
-		progress_bar(ynet * index.x + index.y, len(coin_list))
+		pro.go(ynet * index.x + index.y, len(coin_list), coin)
 		# print('net: {0}, {1}'.format(index.x, index.y))
 		if mode == 'corr':
 			correlation(coin, 'BTCUSDT', ax[index.x, index.y], 'orange')
@@ -453,32 +496,77 @@ def update_figure(ax, ynet, mode = 'corr'):
 
 			index.y += 1
 
-	progress_bar(ynet * index.x + index.y, len(coin_list))
+	pro.go(ynet * index.x + index.y, len(coin_list), 'done' + 5 * ' ')
 	print()
 
 	
+def binance_login():
+
+	global binance_client
+	binance_client = Client(os.environ.get('BINANCE_KEY'), os.environ.get('BINANCE_SECRET'))
+	#binance_client.API_URL = 'https://testnet.binance.vision/api'
+	#binance_client.API_URL = 'https://api.binance.vision'
+	binance_client.API_URL = 'https://api.binance.com/api'
+
+
+def get_capital():
+
+	global coin_list, binance_client
+	capital = []
+	total = 0
+
+	i = 0
+	pro = Progress()
+	for coin in coin_list:
+
+		coiname = coin[:-4]
+		pro.go(i, len(coin_list), coiname)
+		i += 1
+		dic = binance_client.get_asset_balance(asset = coiname)
+		balance = Gaga(float(dic['free']),
+					   float(dic['locked']))
+		if balance.x > 0:
+
+			strix = binance_client.get_symbol_ticker(symbol = coin)["price"]
+			prix = float(strix)
+			share = prix * balance.x
+			total += share
+			capital.append(Gaga(share, prix, coiname))
+
+	pro.go(i, len(coin_list), 'done' + 5 * ' ')
+	print()
+
+	capital.append(Gaga(total, 0, 'total'))
+
+	return capital
+
 
 def main():
 
 	global binance_client, coin_list, run_mode
-	binance_client = Client(os.environ.get('BINANCE_KEY'), os.environ.get('BINANCE_SECRET'))
-	binance_client.API_URL = 'https://testnet.binance.vision/api'
-	binance_client.API_URL = 'https://api.binance.vision'
-	binance_client.API_URL = 'https://api.binance.com/api'
-	#print(binance_client.get_account())
-	#print(binance_client.get_asset_balance(asset='ATA'))
 
-	cli(sys.argv, '1M', '1h')
+	binance_login()
+	cli(sys.argv)
+
+	if run_mode == 'info':
+
+		capital = get_capital()
+		for c in capital:
+
+			print('main: {:10} {:10.2f} USDT, {:16.8f} USDT'.format(c.z, c.x, c.y))
+		return
+	else: gfkjhgbl = 5
+			
 	events = int(interval_to_seconds(data_history) / interval_to_seconds(data_delta))
 	print('main:', data_t0, unix_to_date(data_t0), data_history, data_delta, events)
 
 	coin_list_size = len(coin_list)
 	# coin_list_size += 1
 	
-	fig_size = baby(5, 8)
+	fig_size = Gaga(5, 8)
 	aspect_ratio = fig_size.x / fig_size.y
 
-	net = baby(0, 0)
+	net = Gaga(0, 0)
 	while net.x * net.y < coin_list_size:
 		if (net.x < net.y): net.x += 1
 		else: net.y += 1
@@ -488,32 +576,24 @@ def main():
 
 	#plt.ion()
 	fig, axs = plt.subplots(net.x, net.y, figsize = (fig_size.x, fig_size.y))
-	plt.subplots_adjust(wspace = 0, hspace = 0.44, left = 0, right = 1)
-	figg, axss = plt.subplots(net.x, net.y, figsize = (fig_size.x, fig_size.y))
-	plt.subplots_adjust(wspace = 0, hspace = 0.44, left = 0, right = 1)
 	fig.suptitle('history = {0}, time = {1}, {2} events'.format(data_history, data_delta, events))
-	figg.suptitle('history = {0}, time = {1}, {2} events'.format(data_history, data_delta, events))
 	fig.text(0.8, 0.03, 'kaloyansen.github.io', ha = 'center', va = 'center')
-	figg.text(0.8, 0.03, 'kaloyansen.github.io', ha = 'center', va = 'center')
+	plt.subplots_adjust(wspace = 0, hspace = 0.44, left = 0, right = 1)
 
-	
-	#init() # colorama
+	draw_histo = False
+	if draw_histo:
+		figg, axss = plt.subplots(net.x, net.y, figsize = (fig_size.x, fig_size.y))
+		figg.suptitle('history = {0}, time = {1}, {2} events'.format(data_history, data_delta, events))
+		figg.text(0.8, 0.03, 'kaloyansen.github.io', ha = 'center', va = 'center')
+		plt.subplots_adjust(wspace = 0, hspace = 0.44, left = 0, right = 1)
 
 	print('coin list:', coin_list)
 
-	continuer = True
-	while continuer:
-		update_figure(axs, net.y, 'corr')
-		update_figure(axss, net.y, 'hist')
-		#plt.draw()
-		#plt.show()
-		#plt.pause(0.1)
-		# time.sleep(10)
-		continuer = False
-
-	#plt.ioff()
+	update_figure(axs, net.y, 'corr')
+	if draw_histo: update_figure(axss, net.y, 'hist')
 	plt.show()
 
 
 if __name__ == "__main__":
+
 	main()
