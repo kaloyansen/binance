@@ -14,6 +14,8 @@ import matplotlib.animation as animation
 #from scipy.stats import norm
 from scipy.optimize import curve_fit
 from colorama import Fore, Style, init
+from module.Progress import Progress
+from module.Gaga import Gaga
 
 
 coin_list_def = ['BTCUSDT',
@@ -43,49 +45,6 @@ events_min = 1e3
 events_max = 1e5
 events_default = 4e3
 polynom_degree = 6
-
-
-class Gaga:
-
-	def __init__(self, x, y, z = False): self.set(x, y, z)
-	def notegal(self): return self.x != self.y
-	def rate(self): return self.x / self.y
-	def set(self, x, y, z = False):
-
-		self.x = x
-		self.y = y
-		if z != False: self.z = z 
-		
-class Progress:
-
-	def __init__(self,
-				 progress_bar_size = 55,
-				 marker_past       = '=',
-				 marker_future     = ':',
-				 marker_now        = '>'):
-
-		self.set(progress_bar_size, marker_past, marker_future, marker_now)
-				 
-	def set(self, progress_bar_size, marker_past, marker_future, marker_now):
-
-		self.progress_bar_size = progress_bar_size
-		self.marker_past = marker_past
-		self.marker_future = marker_future
-		self.marker_now = marker_now
-
-	def go(self, progress, total, label = ''):
-
-		scale = self.progress_bar_size / 100	
-		partition = progress / total
-		percent = partition * 100
-		factor = int(percent * scale)
-		bar_size = Gaga(factor, self.progress_bar_size - factor)
-		bar =\
-		self.marker_past * (bar_size.x - 1) +\
-		self.marker_now +\
-		self.marker_future * bar_size.y
-
-		print(f'\r[{bar}] {percent:.0f}% {label:10s}', end = '')
 
 
 def interval_to_seconds(interval):
