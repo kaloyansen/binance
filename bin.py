@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 #from scipy.stats import norm
 from scipy.optimize import curve_fit
-from colorama import Fore, Style, init
+#from colorama import Fore, Style, init
 from module.Progress import Progress
 from module.Gaga import Gaga
 
@@ -190,21 +190,12 @@ def calculate_number_of_bins(number_of_events, number_of_bins_min = 10, number_o
 
 def data_frame(coindata):
 
-	df = pd.DataFrame(coindata, columns = ['date',
-										   'open',
-										   'high',
-										   'low',
-										   'close',
-										   'volume',
-										   'closetime',
-										   'quoteassetvolume',
-										   'trades',
-										   'takerbuybaseassetvolume',
-										   'takerbyquoteassetvolume',
-										   'ignore'])
-	df['date'] = df['date'].apply(to_float)
+	indexes = ['opentime', 'open', 'high','low', 'close', 'volume', 'closetime', 'qav', 'trades', 'bbav', 'bqav', 'ignore']
+
+	df = pd.DataFrame(coindata, columns = indexes)
+	df['opentime'] = df['opentime'].apply(to_float)
 	df['open'] = df['open'].apply(to_float)
-	df.set_index('date', inplace = True)
+	df.set_index('opentime', inplace = True)
 	df.to_csv('coindata.csv')
 	return df
 
