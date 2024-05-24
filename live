@@ -8,16 +8,39 @@ import curses
 from module.stdoutable import stdoutable
 from module.streamprice import streamprice
 
-def printable(stdscr): asyncio.ensure_future(task_printable(stdscr))	
+def printable(stdscr):
+
+	tprint = asyncio.ensure_future(task_printable(stdscr))	
+	asyncio.ensure_future(task_quit(stdscr, tprint))	
+
+
 async def task_printable(stdscr):
 
 	global live_data, dead_time
 
 	table = stdoutable(stdscr, live_data)
+	stdscr.nodelay(True)
 	while True:
 
 		table.draw_table()
 		await asyncio.sleep(dead_time)
+
+
+async def task_quit(stdscr, task):
+
+	stdscr.nodelay(True)
+	while True:
+
+		key = stdscr.getch()
+		if key == ord('q'):
+
+			task.cancel()
+			curses.endwin()
+			# exit(0)
+			break
+
+		await asyncio.sleep(0.1)
+
 
 def read_coin_list(filename):
 
@@ -39,21 +62,22 @@ if __name__ == '__main__':
 		live_data.append([coin, 'loading...', '-'])
 
 	binance = streamprice(live_data, coin_list)
-	binance.account(os.environ.get('BINANCE_KEY'), os.environ.get('BINANCE_SECRET'))
+	binance.login(os.environ.get('BINANCE_KEY'),
+				  os.environ.get('BINANCE_SECRET'))
 
 	loop = asyncio.get_event_loop()
 
 	try:
 
 		minitask = asyncio.ensure_future(binance.task_miniticker_socket())
+		usertask = asyncio.ensure_future(binance.task_account())
 		curses.wrapper(printable)
-
 		loop.run_forever()
 	except KeyboardInterrupt:
 
 		pass
 	finally:
 
-		print("closing Loop")
-		minitask.cancel()
-		loop.close()
+		print('closing')
+		binance.close()
+		#loop.close()

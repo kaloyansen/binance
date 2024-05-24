@@ -6,17 +6,45 @@ class streamprice:
 
 		self.crypto = crypto_list
 		self.data_table = data_table
+		self.quit = False
 
 
-	def account(self, api_key, api_sec):
+
+	def close(self): self.quit = True
+	def login(self, api_key, api_sec):
 
 		self.api_key = api_key
 		self.api_sec = api_sec
 		
 
+	async def connexion(self):
+
+		client = await AsyncClient.create(self.api_key, self.api_sec)
+		return client
+
+	async def task_account(self):
+
+		client = await self.connexion()
+
+		#while True:
+
+		account_info = await client.get_account()
+		bal = account_info['balances']
+
+		for asset in bal:
+
+			aname = asset['asset']
+			afree = float(asset['free'])				
+			message = f'{aname} {afree}' if afree > 0 else False
+			if message: print(message)
+			if self.quit: break
+			
+		ac = await client.close_connection()		
+		
+		
 	async def task_miniticker_socket(self):
 	
-		client = await AsyncClient.create(self.api_key, self.api_sec)
+		client = await self.connexion()
 		bm = BinanceSocketManager(client)
 		mt = bm.miniticker_socket()
 		async with mt as miniticker_socket:
@@ -25,6 +53,8 @@ class streamprice:
 
 				res = await miniticker_socket.recv()				
 				for asset in res: self.update_data(asset)
+				if self.quit: break
+		ac = await client.close_connection()
 
 
 	def update_data(self, raw_data):
