@@ -1,7 +1,7 @@
 import websocket
 import json
 
-class live:
+class web:
 
 	def __init__(self, crypto = 'fetusdt', trace = False):
 

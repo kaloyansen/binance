@@ -13,7 +13,7 @@ async def task_printable(stdscr):
 
 	global live_data, dead_time
 
-	table = Table(stdscr, live_data)
+	table = stdoutable(stdscr, live_data)
 	while True:
 
 		table.draw_table()
@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
 		live_data.append([coin, 'loading...', '-'])
 
-	binance = Streamprice(live_data, coin_list)
+	binance = streamprice(live_data, coin_list)
 	binance.account(os.environ.get('BINANCE_KEY'), os.environ.get('BINANCE_SECRET'))
 
 	loop = asyncio.get_event_loop()
