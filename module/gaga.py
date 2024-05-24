@@ -1,8 +1,9 @@
-class Gaga:
+class gaga:
 
 	def __init__(self, x, y, z = False): self.set(x, y, z)
 	def notegal(self): return self.x != self.y
 	def rate(self): return self.x / self.y
+	def get(self): return y
 	def append(self, xval, yval, zval = False):
 
 		self.x.append(xval)

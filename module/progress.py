@@ -1,6 +1,6 @@
-from module.Gaga import Gaga
+from module.gaga import gaga
 
-class Progress:
+class progress:
 
 	def __init__(self,
 				 progress_bar_size = 55,
@@ -23,7 +23,7 @@ class Progress:
 		partition = progress / total
 		percent = partition * 100
 		factor = int(percent * scale)
-		bar_size = Gaga(factor, self.progress_bar_size - factor)
+		bar_size = gaga(factor, self.progress_bar_size - factor)
 		bar =\
 		self.marker_past * (bar_size.x - 1) +\
 		self.marker_now +\

@@ -14,8 +14,8 @@ import matplotlib.animation as animation
 #from scipy.stats import norm
 from scipy.optimize import curve_fit
 #from colorama import Fore, Style, init
-from module.Progress import Progress
-from module.Gaga import Gaga
+from module.progress import progress
+from module.gaga import gaga
 
 
 coin_list_def = ['BTCUSDT',
@@ -224,8 +224,8 @@ def correlation(asset1, asset2 , plot, tickcolor = 'black'):
 	coindatax = binance_client.get_historical_klines(asset1, data_delta, str(data_t0), limit = 1000)
 	coindatay = binance_client.get_historical_klines(asset2, data_delta, str(data_t0), limit = 1000)
 
-	df = Gaga(data_frame(coindatax), data_frame(coindatay))
-	prix = Gaga(df.x['open'], df.y['open'])
+	df = gaga(data_frame(coindatax), data_frame(coindatay))
+	prix = gaga(df.x['open'], df.y['open'])
 	t0 = df.x.index[0]
 	t1 = df.x.index[-1]
 	#df.x['weight'] = df.x.index - t0
@@ -237,7 +237,7 @@ def correlation(asset1, asset2 , plot, tickcolor = 'black'):
 
 	nbins = calculate_number_of_bins(dfrows, 10, 33, 222)
 
-	step = Gaga(int(len(prix.x) / 4), int(len(prix.y) / 4))
+	step = gaga(int(len(prix.x) / 4), int(len(prix.y) / 4))
 
 	x = []
 	x.append(prix.x.iloc[0 * step.x])
@@ -272,9 +272,9 @@ def correlation(asset1, asset2 , plot, tickcolor = 'black'):
 	dy.append(y[-1] - y[0])
 
 
-	bins = Gaga(np.linspace(xmin, xmax, nbins), np.linspace(ymin, ymax, nbins))
+	bins = gaga(np.linspace(xmin, xmax, nbins), np.linspace(ymin, ymax, nbins))
 
-	lendf = Gaga(len(df.x), len(df.y))
+	lendf = gaga(len(df.x), len(df.y))
 	while lendf.notegal():
 
 		print('\n{} {} != {} dropping 0'.format(asset1, lendf.x, lendf.y))
@@ -288,8 +288,8 @@ def correlation(asset1, asset2 , plot, tickcolor = 'black'):
 
 	hist2d, xedges, yedges = np.histogram2d(prix.x, prix.y, bins = [bins.x, bins.y])
 	hist_flat = hist2d.flatten()
-	bin_centers = Gaga((xedges[:-1] + xedges[1:]) / 2, (yedges[:-1] + yedges[1:]) / 2)
-	bin_centers_flat = Gaga(np.tile(bin_centers.x, len(bin_centers.y)), np.repeat(bin_centers.y, len(bin_centers.x)))
+	bin_centers = gaga((xedges[:-1] + xedges[1:]) / 2, (yedges[:-1] + yedges[1:]) / 2)
+	bin_centers_flat = gaga(np.tile(bin_centers.x, len(bin_centers.y)), np.repeat(bin_centers.y, len(bin_centers.x)))
 
 	scatter = plot.scatter(bin_centers_flat.x, bin_centers_flat.y, s = hist_flat, c = hist_flat, cmap = 'Blues', marker = 'p', alpha = 0.4, edgecolor = 'yellow', label = 'correlation')
 
@@ -301,7 +301,7 @@ def correlation(asset1, asset2 , plot, tickcolor = 'black'):
 	#plot.hist2d(df1['open'], df2['open'], bins = nbins, alpha = 0.4, label = "uniform", color = 'magenta', edgecolor = 'white', density = True, cmap = 'plasma')
 	# im = plot.imshow(hist2d.T, origin = 'lower', aspect = 'auto', extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]])
 
-	change = Gaga(dx[-1] / x[-1], dy[-1] / y[-1])
+	change = gaga(dx[-1] / x[-1], dy[-1] / y[-1])
 	rate = change.rate()
 	status = 0
 
@@ -363,7 +363,7 @@ def histogram(coin, plot, tickcolor = 'black'):
 	plot.hist(price, bins = nbins, alpha = 0.4, label = "weighted", color = 'cyan', edgecolor = 'black', density = True, weights = weight)
 #	plot.ticklabel_format(axis = 'y', style='sci', scilimits = (0, 0))
 
-	fromto = Gaga(price.iloc[0], price.iloc[-1])
+	fromto = gaga(price.iloc[0], price.iloc[-1])
 
 	plot.axvline(x = fromto.x, color = tickcolor, linestyle = ':', linewidth = 3, label = unix_to_date(t0))
 	plot.axvline(x = fromto.y, color = tickcolor, linestyle = '-', linewidth = 3, label = unix_to_date(t1))
@@ -424,10 +424,10 @@ def check_vector_direction(dx, dy):
 
 def update_figure(ax, ynet, mode = 'corr'):
 	global coinlist
-	index = Gaga(0, 0)
+	index = gaga(0, 0)
 		
 	coin = 0
-	pro = Progress()
+	pro = progress()
 	for coin in coin_list:
 
 		pro.go(ynet * index.x + index.y, len(coin_list), coin)
@@ -466,14 +466,14 @@ def get_capital():
 	total = 0
 
 	i = 0
-	pro = Progress()
+	pro = progress()
 	for coin in coin_list:
 
 		coiname = coin[:-4]
 		pro.go(i, len(coin_list), coiname)
 		i += 1
 		dic = binance_client.get_asset_balance(asset = coiname)
-		balance = Gaga(float(dic['free']),
+		balance = gaga(float(dic['free']),
 					   float(dic['locked']))
 		if balance.x > 0:
 
@@ -481,12 +481,12 @@ def get_capital():
 			prix = float(strix)
 			share = prix * balance.x
 			total += share
-			capital.append(Gaga(share, prix, coiname))
+			capital.append(gaga(share, prix, coiname))
 
 	pro.go(i, len(coin_list), 'done' + 5 * ' ')
 	print()
 
-	capital.append(Gaga(total, 0, 'total'))
+	capital.append(gaga(total, 0, 'total'))
 
 	return capital
 
@@ -513,10 +513,10 @@ def main():
 	coin_list_size = len(coin_list)
 	# coin_list_size += 1
 	
-	fig_size = Gaga(5, 8)
+	fig_size = gaga(5, 8)
 	aspect_ratio = fig_size.x / fig_size.y
 
-	net = Gaga(0, 0)
+	net = gaga(0, 0)
 	while net.x * net.y < coin_list_size:
 		if (net.x < net.y): net.x += 1
 		else: net.y += 1

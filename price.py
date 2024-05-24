@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-from module.Live import Live
+from module.live import live
 
 def main(coiname):
 
@@ -10,7 +10,7 @@ def main(coiname):
 		print('\nusage: {} <coin>\n'.format(sys.argv[0]))
 		return 0
 
-	Live(coiname + 'usdt')
+	live(coiname + 'usdt')
 
 
 if __name__ == "__main__":
