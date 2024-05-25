@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import time
 import asyncio
 import curses
+import binance
+from random import choice as choice
 
 from module.stdoutable import stdoutable
 from module.streamprice import streamprice
@@ -26,20 +29,56 @@ async def task_printable(stdscr):
 		await asyncio.sleep(dead_time)
 
 
-async def task_quit(stdscr, task):
+async def task_rolling(text = 'https://kaloyansen.github.io' + 11 * ' '):
 
-	stdscr.nodelay(True)
+	global dead_time, live_data
+	new_index = len(live_data)
+	live_data.append(['', '', ''])
+
+	version_info = sys.version_info
+	py_ver = f'{version_info.major}.{version_info.minor}.{version_info.micro}'
+	bin_ver = '' #binance.__version__
+	
+
+	while True:
+		await asyncio.sleep(3)
+		_text = text
+		while True:
+
+			live_data[new_index][0] = _text
+			_text = _text[1:] + _text[0]
+			if _text == text: break
+			await asyncio.sleep(0.02)
+
+		await asyncio.sleep(4)
+		live_data[new_index][0] = ''
+		await asyncio.sleep(1)
+		live_data[new_index][0] = choice(['press [q] to quit',
+										  'powered by python ' + py_ver,
+										  'powered by python-binance ' + bin_ver,
+										  'stdout by curses',
+										  'async by asyncio'])
+		await asyncio.sleep(7)
+		live_data[new_index][0] = ''
+
+        
+
+async def task_quit(stdscr, task, interrupt_key = 'q'):
+
+	# stdscr.nodelay(True)
 	while True:
 
 		key = stdscr.getch()
-		if key == ord('q'):
+		if key == ord(interrupt_key):
 
 			task.cancel()
 			curses.endwin()
-			# exit(0)
 			break
 
 		await asyncio.sleep(0.1)
+	await asyncio.sleep(1)
+	exit(0)
+	
 
 
 def read_coin_list(filename):
@@ -56,10 +95,11 @@ if __name__ == '__main__':
 	dead_time = 0.1
 
 	coin_list = read_coin_list('coin.list')
-	live_data = [['crypto', 'price/usdt', 'change/%']]
+	live_data = [['crypto', 'price/usdt', 'change/%', 'capital/usdt']]
 	for coin in coin_list:
 
-		live_data.append([coin, 'loading...', '-'])
+		live_data.append([coin, '0', '', '0'])
+	live_data.append(['0', '0', '', '0'])
 
 	binance = streamprice(live_data, coin_list)
 	binance.login(os.environ.get('BINANCE_KEY'),
@@ -70,8 +110,11 @@ if __name__ == '__main__':
 	try:
 
 		minitask = asyncio.ensure_future(binance.task_miniticker_socket())
+		rolltask = asyncio.ensure_future(task_rolling())
 		usertask = asyncio.ensure_future(binance.task_account())
+
 		curses.wrapper(printable)
+
 		loop.run_forever()
 	except KeyboardInterrupt:
 

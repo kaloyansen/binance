@@ -14,6 +14,6 @@ pip install -r binance/requirements.txt
 
 cd binance
 
-./live.py
+./live
 
 

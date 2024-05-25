@@ -1,4 +1,5 @@
 from binance import AsyncClient, BinanceSocketManager
+import asyncio, time
 
 class streamprice:
 
@@ -7,8 +8,7 @@ class streamprice:
 		self.crypto = crypto_list
 		self.data_table = data_table
 		self.quit = False
-
-
+		self.offset = 1
 
 	def close(self): self.quit = True
 	def login(self, api_key, api_sec):
@@ -26,22 +26,44 @@ class streamprice:
 
 		client = await self.connexion()
 
-		#while True:
-
 		account_info = await client.get_account()
 		bal = account_info['balances']
-
-		for asset in bal:
-
-			aname = asset['asset']
-			afree = float(asset['free'])				
-			message = f'{aname} {afree}' if afree > 0 else False
-			if message: print(message)
-			if self.quit: break
+		while True:
 			
-		ac = await client.close_connection()		
+			if self.quit: break
+			for asset in bal:
+
+				aname = asset['asset']
+				afree = float(asset['free'])				
+				if afree > 0: self.capital(aname.lower(), afree)
+
+			await asyncio.sleep(1)
+							
+		await client.close_connection()
 		
 		
+	def capital(self, name, free):
+
+		index = self.get_table_index(name)
+		if not index < 0:
+
+			index += 1
+			raw = self.data_table[index]
+			price = raw[1]
+			raw[3] = '{:7.2f}'.format(float(price) * free)
+
+		count = self.offset
+		total = 0
+		while count < len(self.crypto) + self.offset:
+
+			total += float(self.data_table[count][3])
+			count += 1
+		self.data_table[count][2] = 'total'
+		self.data_table[count][3] = '{:7.2f}'.format(total)
+
+		
+
+
 	async def task_miniticker_socket(self):
 	
 		client = await self.connexion()
@@ -61,24 +83,27 @@ class streamprice:
 		
 		close_index = 1
 		change_index = 2
-		offset = 1 # leave space for a raw with column titles
-
-		dindex = self.get_data_index(raw_data)
+		dindex = self.get_raw_data_index(raw_data)
 		if dindex < 0: return
 
 		close = float(raw_data['c'])		
 		change = 100 * self.get_change(raw_data)
 		
-		self.data_table[dindex + offset][close_index] = '{:14.7f}'.format(close)
-		self.data_table[dindex + offset][change_index] = '{:+8.2f}%'.format(change)
+		self.data_table[dindex + self.offset][close_index] = '{:14.7f}'.format(close)
+		self.data_table[dindex + self.offset][change_index] = '{:+8.2f}'.format(change)
 
 
-	def get_data_index(self, raw_data):
+	def get_table_index(self, crypto):
+
+		try: return self.crypto.index(crypto.lower())
+		except ValueError: return -1
+
+
+	def get_raw_data_index(self, raw_data):
 
 		scoin = raw_data['s']
 		search = scoin[:-4]
-		try: return self.crypto.index(search.lower())
-		except ValueError: return -1
+		return self.get_table_index(search)
 
 
 	def get_change(self, dik):

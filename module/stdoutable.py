@@ -12,13 +12,16 @@ class stdoutable:
 		self.start_x = self.w // 2 - len(self.data[0]) * self.column_size // 2
 		self.start_y = self.h // 2 - len(self.data) // 2
 		curses.curs_set(0)
-		stdscr.nodelay(1)
+		stdscr.nodelay(True)
 		stdscr.timeout(1000)
 		curses.initscr()
 		curses.start_color()
 		curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_GREEN)
+		curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
 		curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_RED)
+		# curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
 		curses.init_pair(3, curses.COLOR_WHITE, curses.COLOR_BLACK)
+		curses.init_pair(4, curses.COLOR_BLACK, curses.COLOR_BLACK)
 
 	def draw_table(self):
 
@@ -32,6 +35,7 @@ class stdoutable:
 
 					if '+' in val: c = curses.color_pair(1)
 					if '-' in val: c = curses.color_pair(2)
+					if val == '0': c = curses.color_pair(4)
 
 				self.stdscr.addstr(self.start_y + i,
 								   self.start_x + j * self.column_size,
