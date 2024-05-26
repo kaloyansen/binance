@@ -26,41 +26,61 @@ async def task_printable(stdscr):
 	while True:
 
 		table.draw_table()
-		await asyncio.sleep(dead_time)
+		await asyncio.sleep(0.01)
 
 
-async def task_rolling(text = 'https://kaloyansen.github.io' + 11 * ' '):
+async def rnr(text = ''):
 
-	global dead_time, live_data
-	new_index = len(live_data)
-	live_data.append(['', '', ''])
+	global live_data
+	frequence = 30
+	raw = len(live_data) - 1
+	while len(text) < 52: text += ' '
+	_text = text
+
+	await asyncio.sleep(1)
+
+	dump = ''
+	data = live_data[raw]
+	while _text: # appear
+
+		first_letter = _text[0]
+		_text = _text[1:]
+		dump += first_letter
+		live_data[raw][0] = dump
+		await asyncio.sleep(1 / frequence)
+	while True: # dissappear
+
+		interrupt = True
+		dump = ' ' + dump[:-1]
+		live_data[raw][0] = dump
+		for mot in dump:
+			if not mot == ' ': interrupt = False
+		await asyncio.sleep(1 / frequence)
+		if interrupt: break 
+
+	
+async def task_rolling(quiet = 100):
+
+	global live_data
 
 	version_info = sys.version_info
-	py_ver = f'{version_info.major}.{version_info.minor}.{version_info.micro}'
+	py_ver = '{}.{}.{}'.format(version_info.major,
+							   version_info.minor,
+							   version_info.micro)
 	bin_ver = '' #binance.__version__
-	
+	pub_list = ['https://kaloyansen.github.io',
+				'press [q] to quit',
+				'powered by python ' + py_ver,
+				'powered by python-binance ' + bin_ver,
+				'stdout by curses',
+				'async by asyncio']
+	live_data.append(['', '', ''])
 
 	while True:
-		await asyncio.sleep(3)
-		_text = text
-		while True:
-
-			live_data[new_index][0] = _text
-			_text = _text[1:] + _text[0]
-			if _text == text: break
-			await asyncio.sleep(0.02)
-
-		await asyncio.sleep(4)
-		live_data[new_index][0] = ''
-		await asyncio.sleep(1)
-		live_data[new_index][0] = choice(['press [q] to quit',
-										  'powered by python ' + py_ver,
-										  'powered by python-binance ' + bin_ver,
-										  'stdout by curses',
-										  'async by asyncio'])
-		await asyncio.sleep(7)
-		live_data[new_index][0] = ''
-
+		
+		pub = choice(pub_list)
+		await asyncio.sleep(quiet)
+		await rnr(pub)
         
 
 async def task_quit(stdscr, task, interrupt_key = 'q'):
