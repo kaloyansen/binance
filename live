@@ -97,7 +97,7 @@ async def task_quit(stdscr, task, interrupt_key = 'q'):
 
 		await asyncio.sleep(0.1)
 	await asyncio.sleep(1)
-	exit(0)
+	# exit(0)
 	
 
 

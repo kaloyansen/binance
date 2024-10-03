@@ -9,8 +9,8 @@ class stdoutable:
 		self.stdscr = stdscr
 		self.data = data
 		self.h, self.w = stdscr.getmaxyx()
-		self.start_x = self.w // 2 - len(self.data[0]) * self.column_size // 2
-		self.start_y = self.h // 2 - len(self.data) // 2
+		self.start_x = 0 #self.w // 2 - len(self.data[0]) * self.column_size // 2
+		self.start_y = 0 #self.h // 2 - len(self.data) // 2
 		curses.curs_set(0)
 		stdscr.nodelay(True)
 		stdscr.timeout(1000)
